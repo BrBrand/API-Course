@@ -1,11 +1,14 @@
 {
   "version": 2,
-  "dgSpecHash": "zKx1KyxS7YQBaoEq+5wplYjaESfDeQDzkfKA7HTUm14AxPTXxpTGWWJG602yaHU1gdKCNQPEZQHC50DnxHCyZA==",
+  "dgSpecHash": "IkQbTyujiKWt1zW/dHJ1j2FEUXnd/2APxAm8uYy1JXTBlIDNfX9EhNDq9Qshnlxkhg8zzUPirpHFntFpZ2L9AQ==",
   "success": true,
   "projectFilePath": "C:\\Users\\Brbran\\Desktop\\API-Course\\next_generation\\next_generation.csproj",
   "expectedPackageFiles": [
+    "C:\\Users\\Brbran\\.nuget\\packages\\microsoft.aspnetcore.jsonpatch\\7.0.12\\microsoft.aspnetcore.jsonpatch.7.0.12.nupkg.sha512",
+    "C:\\Users\\Brbran\\.nuget\\packages\\microsoft.csharp\\4.7.0\\microsoft.csharp.4.7.0.nupkg.sha512",
     "C:\\Users\\Brbran\\.nuget\\packages\\microsoft.extensions.apidescription.server\\3.0.0\\microsoft.extensions.apidescription.server.3.0.0.nupkg.sha512",
     "C:\\Users\\Brbran\\.nuget\\packages\\microsoft.openapi\\1.2.3\\microsoft.openapi.1.2.3.nupkg.sha512",
+    "C:\\Users\\Brbran\\.nuget\\packages\\newtonsoft.json\\13.0.1\\newtonsoft.json.13.0.1.nupkg.sha512",
     "C:\\Users\\Brbran\\.nuget\\packages\\swashbuckle.aspnetcore\\6.2.3\\swashbuckle.aspnetcore.6.2.3.nupkg.sha512",
     "C:\\Users\\Brbran\\.nuget\\packages\\swashbuckle.aspnetcore.swagger\\6.2.3\\swashbuckle.aspnetcore.swagger.6.2.3.nupkg.sha512",
     "C:\\Users\\Brbran\\.nuget\\packages\\swashbuckle.aspnetcore.swaggergen\\6.2.3\\swashbuckle.aspnetcore.swaggergen.6.2.3.nupkg.sha512",

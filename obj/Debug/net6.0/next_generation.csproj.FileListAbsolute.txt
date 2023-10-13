@@ -30,3 +30,5 @@ C:\Users\Brbran\Desktop\API-Course\next_generation\obj\Debug\net6.0\refint\next_
 C:\Users\Brbran\Desktop\API-Course\next_generation\obj\Debug\net6.0\next_generation.pdb
 C:\Users\Brbran\Desktop\API-Course\next_generation\obj\Debug\net6.0\next_generation.genruntimeconfig.cache
 C:\Users\Brbran\Desktop\API-Course\next_generation\obj\Debug\net6.0\ref\next_generation.dll
+C:\Users\Brbran\Desktop\API-Course\next_generation\bin\Debug\net6.0\Microsoft.AspNetCore.JsonPatch.dll
+C:\Users\Brbran\Desktop\API-Course\next_generation\bin\Debug\net6.0\Newtonsoft.Json.dll
