@@ -1,9 +1,13 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using AutoMapper;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using next_generation.Data;
 using next_generation.Models;
 using next_generation.Models.DTO;
+using next_generation.Repositorio.IRepositorio;
+using System.Net;
 
 namespace next_generation.Controllers
 {
@@ -11,11 +15,44 @@ namespace next_generation.Controllers
     [ApiController]
     public class ApiController : ControllerBase
     {
-        [HttpGet]
-        public ActionResult<IEnumerable<NextGenUsersDto>> GetGenUsers()
-        {
-            return Ok(NextGenUsersData.UsersList);
 
+        private readonly ILogger<ApiController> _logger; // Agrega una propiedad de tipo ILogger
+        private readonly IGenUserRepository _genRepo;
+        private readonly IMapper _mapper;
+        protected APIResponse _response;
+
+        public ApiController(ILogger<ApiController> logger, IGenUserRepository genRepo, IMapper mapper)
+        {
+            _logger = logger; // Inyecta el ILogger en el constructor
+            _genRepo= genRepo;
+            _mapper = mapper;
+            _response = new();
+        }
+
+
+        [HttpGet]
+        public async Task<ActionResult<APIResponse>> GetGenUsers()
+        {
+
+            try
+            {
+                _logger.LogInformation("Obtain users");
+
+
+                IEnumerable<NexGenUsers> userList = await _genRepo.ObtenerTodos();
+
+                _response.Resultado = _mapper.Map<IEnumerable<NextGenUsersDto>>(userList);
+                _response.statusCode = HttpStatusCode.OK;
+                return Ok(_response);
+            }
+            catch(Exception ex) {
+
+                _response.IsExitoso = false;
+                _response.ErrorMessages = new List<string>() { ex.ToString() };
+              
+            }
+
+            return _response;
 
         }
 
@@ -24,56 +61,54 @@ namespace next_generation.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
 
-        public ActionResult<NextGenUsersDto> GetUsers(int id)
+        public async Task<ActionResult<NextGenUsersDto>> GetUsers(int id)
         {
             if (id == 0)
             {
                 return BadRequest("El valor del ID no puede ser 0"); // Devuelve un código 400 (Bad Request) con un mensaje de error
             }
 
-            var user = NextGenUsersData.UsersList.FirstOrDefault(v => v.Id == id);
+            //var user = NextGenUsersData.UsersList.FirstOrDefault(v => v.Id == id);
+            var user = await _genRepo.Obtener(v => v.Id == id);
 
-            if (user != null)
+            if (user == null)
             {
-                return Ok(user); // Devuelve un código 200 (OK) con el objeto encontrado
+                return NotFound(); // Devuelve un código 200 (OK) con el objeto encontrado
             }
-            else
-            {
-                return NotFound(); // Devuelve un código 404 (Not Found) si no se encuentra el usuario
-            }
+           
+           
+
+            return Ok(_mapper.Map<IEnumerable<NextGenUsersDto>>(user));
         }
 
         [HttpPost]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public ActionResult<NextGenUsersDto> AddGenUser([FromBody] NextGenUsersDto nextGenUsersDto)
+        public async Task <ActionResult<NextGenUsersDto>> AddGenUser([FromBody] NextGenUsersCreateDto createDto)
         {
             if (!ModelState.IsValid)
             { 
                 return BadRequest(ModelState);
             }
 
-            if(NextGenUsersData.UsersList.FirstOrDefault(v=>v.FirstName.ToLower() == nextGenUsersDto.FirstName.ToLower()) !=null)
+            if(await _genRepo.Obtener(v=>v.FirstName.ToLower() == createDto.FirstName.ToLower()) !=null)
             {
                 ModelState.AddModelError("The user already registered", "That user already exists!");
                 return BadRequest(ModelState);
             }
-            if (nextGenUsersDto == null)
+            if (createDto == null)
             {
-                return BadRequest("El objeto de usuario no puede ser nulo");
+                return BadRequest(createDto);
             }
 
-            if (nextGenUsersDto.Id > 0)
-            {
-                return StatusCode(StatusCodes.Status500InternalServerError);
-            }
+            NexGenUsers model = _mapper.Map<NexGenUsers>(createDto);
+          
 
-            // Suponiendo que NextGenUsersData.UsersList es la lista de usuarios
-            nextGenUsersDto.Id = NextGenUsersData.UsersList.OrderByDescending(v => v.Id).FirstOrDefault().Id + 1;
-            NextGenUsersData.UsersList.Add(nextGenUsersDto);
+            await _genRepo.Crear(model);
+           
 
-            return CreatedAtRoute("GetUsers", new {id = nextGenUsersDto.Id}, nextGenUsersDto);
+            return CreatedAtRoute("GetUsers", new {id = model.Id}, model);
 
            
 
@@ -82,17 +117,25 @@ namespace next_generation.Controllers
 
         [HttpDelete("{id:int}", Name = "DeleteUser")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public ActionResult DeleteUser(int id)
+        public async Task<IActionResult> DeleteUser(int id)
         {
-            var user = NextGenUsersData.UsersList.FirstOrDefault(v => v.Id == id);
 
-            if (user == null)
+            if (id == 0)
             {
                 return NotFound(); // Return a 404 (Not Found) status code if the user is not found.
             }
 
-            NextGenUsersData.UsersList.Remove(user); // Remove the user from the list.
+            var user = await _db.NextGenUser.FirstOrDefaultAsync(v => v.Id == id);
+
+            if(user == null)
+            {
+                return NotFound();
+            }
+            
+            _db.NextGenUser.Remove(user); // Remove the user from the list.
+            await _db.SaveChangesAsync();
 
             return NoContent(); // Return a 204 (No Content) status code to indicate a successful deletion.
         }
@@ -101,29 +144,28 @@ namespace next_generation.Controllers
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public ActionResult UpdateUser(int id, [FromBody] NextGenUsersDto updatedUser)
-        {
-            if (updatedUser == null)
+        public async Task<IActionResult> UpdateUser(int id, [FromBody] NextGenUsersUpdateDto nextGenUsersDto)
+        {  
+            if (nextGenUsersDto == null || id!= nextGenUsersDto.Id )
             {
                 return BadRequest("The user object cannot be null"); // Return a 400 (Bad Request) status code if the user object is null.
             }
 
-            if (!ModelState.IsValid)
+            NexGenUsers model = new()
             {
-                return BadRequest(ModelState); // Return detailed validation errors if the model state is not valid.
-            }
+                Id = nextGenUsersDto.Id,
+                FirstName = nextGenUsersDto.FirstName,
+                LastName = nextGenUsersDto.LastName,
+                Email = nextGenUsersDto.Email,
+                CreationDate = nextGenUsersDto.CreationDate,
+                Password = nextGenUsersDto.Password
+            };
 
-            var existingUser = NextGenUsersData.UsersList.FirstOrDefault(v => v.Id == id);
+            _db.NextGenUser.Update(model);
+            await _db.SaveChangesAsync();
+            return NoContent();
 
-            if (existingUser == null)
-            {
-                return NotFound(); // Return a 404 (Not Found) status code if the user to update is not found.
-            }
-
-            // Perform the user update here.
-            existingUser.FirstName = updatedUser.FirstName;
-
-            return NoContent(); // Return a 204 (No Content) status code to indicate a successful update.
+          
         }
 
         // ...
@@ -132,37 +174,49 @@ namespace next_generation.Controllers
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public ActionResult PartiallyUpdateUser(int id, [FromBody] JsonPatchDocument<NextGenUsersDto> patchDocument)
+        public async Task<IActionResult> PartiallyUpdateUser(int id, [FromBody] JsonPatchDocument<NextGenUsersUpdateDto> patchDto)
         {
-            if (patchDocument == null)
+            if (patchDto == null)
             {
                 return BadRequest("The patch document cannot be null");
             }
 
-            var existingUser = NextGenUsersData.UsersList.FirstOrDefault(v => v.Id == id);
+            var user = await _db.NextGenUser.AsNoTracking().FirstOrDefaultAsync(v => v.Id == id);
 
-            if (existingUser == null)
-            {
-                return NotFound();
-            }
 
             var userToPatch = new NextGenUsersDto();
 
-            // Utiliza un delegado para manejar los errores de JsonPatchDocument.ApplyTo
-            patchDocument.ApplyTo(userToPatch, (Microsoft.AspNetCore.JsonPatch.JsonPatchError err) =>
+            NextGenUsersUpdateDto nextGenUsersDto = new()
             {
-                // Puedes realizar acciones específicas en caso de error aquí.
-                // Por ejemplo, puedes agregar el error al ModelState si es necesario.
-                ModelState.AddModelError("JsonPatchError", err.ErrorMessage);
-            });
+                Id = user.Id,
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                Email = user.Email,
+                CreationDate = user.CreationDate,
+                Password = user.Password
+            };
+
+            if (user == null) return BadRequest();
+
+            patchDto.ApplyTo(nextGenUsersDto, ModelState);
 
             if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
             }
 
-            // Realiza la operación de parcheo (partial update) con el objeto userToPatch.
+            NexGenUsers model = new()
+            {
+                Id = nextGenUsersDto.Id ,
+                FirstName = nextGenUsersDto.FirstName,
+                LastName = nextGenUsersDto.LastName,
+                Email = nextGenUsersDto.Email,
+                CreationDate = nextGenUsersDto.CreationDate,
+                Password = nextGenUsersDto.Password
+            };
 
+            _db.NextGenUser.Update(model);
+            await _db.SaveChangesAsync();
             return NoContent();
         }
 
